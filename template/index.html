@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Emotional Support Companion</title>
+    <style>
+        body {
+            font-family: 'Helvetica', Arial, sans-serif;
+            background-color: #F5F7FA;
+            color: #333333;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            padding: 20px;
+        }
+        .chat-display {
+            height: 500px;
+            overflow-y: auto;
+            padding: 15px;
+            border: 1px solid #6A8D92;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            background-color: white;
+        }
+        .message {
+            margin-bottom: 15px;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .user-message {
+            background-color: #4A707A;
+            color: white;
+            margin-left: 20%;
+        }
+        .bot-message {
+            background-color: #94B0B7;
+            margin-right: 20%;
+        }
+        .input-area {
+            display: flex;
+            margin-bottom: 15px;
+        }
+        #message-input {
+            flex-grow: 1;
+            padding: 10px;
+            border: 1px solid #6A8D92;
+            border-radius: 5px;
+        }
+        #send-button {
+            background-color: #6A8D92;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin-left: 10px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .mood-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .mood-button {
+            padding: 8px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .typing-indicator {
+            color: #6A8D92;
+            font-style: italic;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 style="color: #6A8D92;">Emotional Support Companion</h1>
+        
+        <div class="mood-buttons">
+            <button class="mood-button" onclick="setMood('positive')">😊 Good</button>
+            <button class="mood-button" onclick="setMood('neutral')">😐 Okay</button>
+            <button class="mood-button" onclick="setMood('negative')">😔 Tough</button>
+        </div>
+        
+        <div class="chat-display" id="chat-display"></div>
+        
+        <div class="typing-indicator" id="typing-indicator" style="display: none;">
+            Sophia is typing...
+        </div>
+        
+        <div class="input-area">
+            <input type="text" id="message-input" placeholder="How are you feeling today?" aria-label="Message input">
+            <button id="send-button" onclick="sendMessage()">Send</button>
+        </div>
+    </div>
+
+    <script>
+        let currentMood = 'neutral';
+        
+        // Load chat history when page loads
+        window.onload = function() {
+            fetch('/get_history')
+                .then(response => {
+                    if (!response.ok) throw new Error('Failed to load chat history');
+                    return response.json();
+                })
+                .then(messages => {
+                    messages.forEach(msg => {
+                        displayMessage(msg.sender, msg.content, msg.timestamp);
+                    });
+                })
+                .catch(error => console.error('Error loading chat history:', error));
+        };
+        
+        function setMood(mood) {
+            currentMood = mood;
+        }
+        
+        function sendMessage() {
+            const input = document.getElementById('message-input');
+            const message = input.value.trim();
+            
+            if (!message) {
+                alert('Please enter a message.');
+                return;
+            }
+
+            displayMessage('User', message);
+            input.value = '';
+            
+            // Show typing indicator with a slight delay
+            setTimeout(() => {
+                document.getElementById('typing-indicator').style.display = 'block';
+            }, 300);
+            
+            fetch('/send_message', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `message=${encodeURIComponent(message)}&mood=${currentMood}`
+            })
+            .then(response => {
+                if (!response.ok) throw new Error('Failed to send message');
+                return response.json();
+            })
+            .then(data => {
+                document.getElementById('typing-indicator').style.display = 'none';
+                displayMessage('Sophia', data.response);
+            })
+            .catch(error => {
+                document.getElementById('typing-indicator').style.display = 'none';
+                console.error('Error sending message:', error);
+            });
+        }
+        
+        function displayMessage(sender, content, timestamp = null) {
+            const chatDisplay = document.getElementById('chat-display');
+            const messageDiv = document.createElement('div');
+            
+            if (!timestamp) {
+                const now = new Date();
+                timestamp = now.toLocaleTimeString();
+            }
+            
+            messageDiv.className = `message ${sender === 'User' ? 'user-message' : 'bot-message'}`;
+            messageDiv.innerHTML = `<strong>${sender}:</strong> ${content} <small>${timestamp}</small>`;
+            
+            chatDisplay.appendChild(messageDiv);
+            chatDisplay.scrollTop = chatDisplay.scrollHeight;
+        }
+        
+        // Allow pressing Enter to send message
+        document.getElementById('message-input').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+</html>
